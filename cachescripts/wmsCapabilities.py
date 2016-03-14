@@ -180,6 +180,12 @@ def createCache(server, capabilitiesXML, coverageXML):
                # Data to be sent in the mastercache
                layers.append(masterLayer)
                
+
+               # Set default colormap style
+               try:
+                  defaultstyle = server['indicators'][name]['defaultStyle']
+               except KeyError:
+                  defaultstyle = "boxfill/rainbow"
                # Data to be saved out
                layer = {#"Name": name,
                         #"wmsURL": server['wmsURL'],
@@ -192,13 +198,15 @@ def createCache(server, capabilitiesXML, coverageXML):
                         #"EX_GeographicBoundingBox": exGeographicBoundingBox,
                         "BoundingBox": boundingBox,
                         "Dimensions": dimensions['dimensions'],
+                        "DefaultStyle": defaultstyle,
                         "Styles": styles }
                
                cleanServerName = server['name'].replace('/', '-')
                cleanLayerName = name.replace('/', '-')
                
                # Save out layer cache
-               utils.saveFile(LAYERCACHEPATH + cleanServerName + "_" + cleanLayerName + FILEEXTENSIONJSON, json.dumps(layer))
+               utils.saveFile(LAYERCACHEPATH + cleanServerName + "_" +
+                              cleanLayerName + FILEEXTENSIONJSON, json.dumps(layer))
                
          subMasterCache['server'][sensorName] = layers
    
