@@ -174,7 +174,7 @@ gisportal.layer = function(name, title, productAbstract, type, opts) {
          this.getDimensions(layerData); // Get dimensions.
          // A list of styles available for the layer
          this.styles = layerData.Styles; // Can be 'Null'.
-         this.style = "boxfill/rainbow";
+         this.style = "boxfill/sm";
          
       } else if(this.type == "refLayers") {
          this.style = new OpenLayers.StyleMap(this.options.style);
