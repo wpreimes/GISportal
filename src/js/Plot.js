@@ -446,7 +446,7 @@ gisportal.graphs.Plot =(function(){
                var t = new Date();
                _this.estimatedFinishTime = new Date(t.getTime() + 1000*_this.timeEstimate);
             }else{
-               $.notify("There is too much data\n Try plotting a graph with a smaller bounding box or smaller time bounds", "error");
+                $.notify("There is quite a bit of data\n Try again with a smaller bounding box or smaller time bounds if it takes too long", "error");
             }
          }
       }
