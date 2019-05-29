@@ -10,9 +10,9 @@
 gisportal.indicatorsPanel = {};
 
 gisportal.indicatorsPanel.open = function() {
-   if ($('.js-show-panel[data-panel-name="active-layers"').hasClass('hidden')) {
+   if ($('.js-show-panel[data-panel-name="active-layers"]').hasClass('hidden')) {
       // Show the layers tab if it is currently hidden
-      $('.js-show-panel[data-panel-name="active-layers"').toggleClass('hidden', false);
+      $('.js-show-panel[data-panel-name="active-layers"]').toggleClass('hidden', false);
    }
    gisportal.panels.showPanel('active-layers');
 };
@@ -67,7 +67,7 @@ gisportal.indicatorsPanel.initDOM = function() {
    $('.js-indicators').on('click', '.js-remove', function() {
       if (gisportal.selectedLayers.length <= 1) {
          // Hide the layers tab if no layers are selected
-         $('.js-show-panel[data-panel-name="active-layers"').toggleClass('hidden', true);
+         $('.js-show-panel[data-panel-name="active-layers"]').toggleClass('hidden', true);
          gisportal.panels.showPanel('choose-indicator');
          // Clears the vector layer to avoid confusion
          gisportal.vectorLayer.getSource().clear();
@@ -317,6 +317,16 @@ gisportal.indicatorsPanel.initDOM = function() {
          "scrollPercent": scrollPercent
       };
       gisportal.events.trigger('indicatorspanel.scroll', params);
+   });
+
+   $('.js-indicators').on('click', '.related_layer', function(){
+      var current_date = $('.scalebar-selected-date').text();
+      // place holder whilst feature is developed
+      // 2015-12-01 00:00 to 20170513_182525
+      tdate = current_date.split(' ');
+      layerDate = tdate[0].split('-')[0]+tdate[0].split('-')[1]+tdate[0].split('-')[2]+'_'+tdate[1].split(':')[0]+tdate[1].split(':')[1]+tdate[1].split(':')[2];
+      // call gisportal.refinePanel.layerFound = function(layerId, style) with the layerid to add it to the map and do associated actions
+      //gisportal.refinePanel.layerFound('rsg_','');
    });
 };
 
@@ -580,37 +590,48 @@ gisportal.indicatorsPanel.detailsTab = function(id) {
 
 gisportal.indicatorsPanel.analysisTab = function(id) {
    var indicator = gisportal.layers[id];
-   var onMetadata = function(){
-      var modifiedName = id.replace(/([A-Z])/g, '$1-'); // To prevent duplicate name, for radio button groups
-      indicator.modified = gisportal.utils.nameToId(indicator.name);
-      indicator.modifiedName = modifiedName;
-      indicator.loggedIn = gisportal.user.info.permission != "guest";
-      indicator.noOAuth = gisportal.noOAuth;
-      var rendered = gisportal.templates['tab-analysis'](indicator);
-      $('[data-id="' + id + '"] .js-tab-analysis').html(rendered);
-      $('.js-google-auth-button').click(function() {
+   if (indicator.temporal) {
+      var onMetadata = function(){
+         var modifiedName = id.replace(/([A-Z])/g, '$1-'); // To prevent duplicate name, for radio button groups
+         indicator.modified = gisportal.utils.nameToId(indicator.name);
+         indicator.modifiedName = modifiedName;
+         indicator.loggedIn = gisportal.user.info.permission != "guest";
+         indicator.noOAuth = gisportal.noOAuth;
+         var rendered = gisportal.templates['tab-analysis'](indicator);
+         $('[data-id="' + id + '"] .js-tab-analysis').html(rendered);
+         $('.js-google-auth-button').click(function() {
          window.top.open(gisportal.middlewarePath + '/user/auth/google','authWin','left=20,top=20,width=700,height=700,toolbar=1');
-      });
-      $('.js-analysis-elevation').on('change', function(){
-         var value = $(this).val();
-         var params = {
-            "event": "layerDepth.change",
-            "value":value
-         };
-         gisportal.events.trigger('layerDepth.change', params);
-      });
-      $('[data-id="' + id + '"] .js-icon-analyse').toggleClass('hidden', false);
+         });
+         $('.js-analysis-elevation').on('change', function(){
+            var value = $(this).val();
+            var params = {
+               "event": "layerDepth.change",
+               "value":value
+            };
+            gisportal.events.trigger('layerDepth.change', params);
+         });
+         $('[data-id="' + id + '"] .js-icon-analyse').toggleClass('hidden', false);
 
-      if(gisportal.methodThatSelectedCurrentRegion.method == "drawBBox"){
-         $('.js-coordinates').val(gisportal.methodThatSelectedCurrentRegion.value);
+         if(gisportal.methodThatSelectedCurrentRegion.method == "drawBBox"){
+            $('.js-coordinates').val(gisportal.methodThatSelectedCurrentRegion.value);
+         }
+
+         gisportal.indicatorsPanel.addAnalysisListeners();
+         gisportal.indicatorsPanel.populateShapeSelect();
+      };
+      if(indicator.metadataComplete) {
+         onMetadata();
+      } else { 
+         gisportal.events.bind_once('layer.metadataLoaded',onMetadata);
       }
-
-      gisportal.indicatorsPanel.addAnalysisListeners();
-      gisportal.indicatorsPanel.populateShapeSelect();
-   };
-   if(indicator.metadataComplete) onMetadata();
-   else gisportal.events.bind_once('layer.metadataLoaded',onMetadata);
-
+      // show the time range details that may have previously been hiden by a previous run of this function
+      $('li[data-id="' + id + '"] .date-range-detail').show();
+   } else {
+      // hide the analysis tab for layers with no time dimension
+      $('[data-id="' + id + '"] .js-icon-analyse').toggleClass('hidden', true);
+      // and the date range li on the info tab
+      $('li[data-id="' + id + '"] .date-range-detail').hide();
+   }
 };
 
 gisportal.indicatorsPanel.geoJSONSelected = function(selectedValue, fromSavedState){
@@ -736,8 +757,10 @@ gisportal.indicatorsPanel.redrawScalebar = function(layerId) {
       // TODO add logic to this when adding support for layers with no date
       indicator.hasDate = true;
       // Put the date in a nice format for displaying next to the scalebar
-      indicator.niceSelectedDateTime = moment.utc(indicator.selectedDateTime).format('YYYY-MM-DD HH:mm');
-
+      indicator.niceSelectedDateTime = moment.utc(indicator.selectedDateTime).format('YYYY-MM-DD HH:mm:ss');
+      if (!indicator.temporal) {
+         indicator.niceSelectedDateTime = '';
+      }
       var renderedScalebar = gisportal.templates.scalebar(indicator);
 
 
@@ -1365,7 +1388,7 @@ gisportal.indicatorsPanel.convertBboxCoords = function(coordsArray, from_proj, t
    for(var point in coordsArray){
       if(typeof(coordsArray[point][0]) == "object"){
          gisportal.indicatorsPanel.convertBboxCoords(coordsArray[point], from_proj, to_proj);
-      }else{
+      } else{
          coordsArray[point] = gisportal.reprojectPoint(coordsArray[point], from_proj, to_proj);
       }
    }
@@ -1375,11 +1398,8 @@ gisportal.indicatorsPanel.convertBboxCoords = function(coordsArray, from_proj, t
 gisportal.indicatorsPanel.doesTransectPointsFallInLayerBounds = function( layerId ){
    if( gisportal.currentSelectedRegion === "" ) return true;
 
-   //bb1 = Terraformer.WKT.parse( gisportal.currentSelectedRegion );
    var tar = gisportal.currentSelectedRegion.split('GEOMETRYCOLLECTION(POINT(')[1].split('),POINT(');
    tar[tar.length-1] = tar[tar.length-1].split(')')[0];
-
-
 
    var layer = gisportal.layers[ layerId ];
    var bounds = layer.exBoundingBox;
@@ -1415,7 +1435,7 @@ gisportal.indicatorsPanel.doesTransectPointsFallInLayerBounds = function( layerI
    for(var x = 0; x < tar.length -1; x++ ){
       var t_point = new Terraformer.Point({
          "type" : "Point",
-         "coordinates" : [Number(tar[x].split(' ')[0]), Number(tar[x].split(' ')[1])]
+         "coordinates" :gisportal.reprojectPoint([Number(tar[x].split(' ')[0]), Number(tar[x].split(' ')[1])], gisportal.projection, "EPSG:4326")
       });
       // test if point inside bbox
       if(bb2.contains(t_point)){
@@ -1468,7 +1488,7 @@ gisportal.indicatorsPanel.doesCurrentlySelectedRegionFallInLayerBounds = functio
    }
    // INFO: This could eventually be replaced if a bounding box that intersects the current world can be split into multi-polygons.
    if(!bb1.within( bb2 )){
-      return "The bounding box cannot wrap around the dateline, please redraw it.";
+      return "The bounding box cannot wrap around the International Date Line, please redraw it.";
    }
 
    var layer = gisportal.layers[ layerId ];

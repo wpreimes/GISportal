@@ -249,6 +249,8 @@ gisportal.layer = function( options ) {
             layer.elevationUnits = value.Units;
          }
       });
+      // Re-render (or hide) the analysis tab; we need the dimensions first to see if the layer is temporal
+      gisportal.indicatorsPanel.analysisTab(layer.id);
    };
 
    this.setScalebarTimeout = function(){
@@ -318,7 +320,11 @@ gisportal.layer = function( options ) {
     */
    this.isVisible = true;  
    this.setVisibility = function(visibility) {
-      if (this.openlayers.anID) this.openlayers.anID.setVisible(visibility && this.isInbounds);
+      var visible = visibility;
+      if (this.temporal) {
+         visible = visibility && this.isInbounds;
+      }
+      if (this.openlayers.anID) this.openlayers.anID.setVisible(visible);
       this.isVisible = visibility;
    };
    
@@ -461,7 +467,7 @@ gisportal.layer = function( options ) {
             layer.isInbounds = true;
 
             // Put the date in a nice format
-            var niceDate = moment.utc(matchedDate[0]).format('YYYY-MM-DD HH:mm');
+            var niceDate = moment.utc(matchedDate[0]).format('YYYY-MM-DD HH:mm:ss');
             // Display the nice date next to the scalebar
             $('li[data-id="' + layer.id + '"] p.scalebar-selected-date').html(niceDate);
 
@@ -794,7 +800,7 @@ gisportal.filterLayersByDate = function(date) {
    });
    for(var layer in gisportal.selectedLayers){
       var this_layer = gisportal.layers[gisportal.selectedLayers[layer]];
-      if(!this_layer.isInbounds){
+      if(!this_layer.isInbounds && this_layer.temporal){
          $('.timeline-date-options').notify('You have selected a date that does not fall within the bounds of all layers. Layers without data are not shown');
          return false;
       }
@@ -812,6 +818,7 @@ gisportal.filterLayersByDate = function(date) {
  */
 gisportal.getLayerData = function(fileName, layer, options, style) {  
    options = options || {};
+
    if (layer.serviceType=="WFS"){
 
       layer.init(options,layer);
@@ -842,7 +849,7 @@ gisportal.getLayerData = function(fileName, layer, options, style) {
       }
       catch(e){}
       $.ajax({
-         url: gisportal.ProxyHost + encodeURIComponent(layer.wmsURL + 'item=minmax&layers=' + layer.urlName + time + '&bbox=' + bbox + '&srs=' + gisportal.projection + '&width=50&height=50&request=GetMetadata'),
+         url: gisportal.ProxyHost + encodeURIComponent(layer.wmsURL + 'item=minmax&layers=' + layer.urlName + time + '&bbox=' + bbox + '&srs=EPSG:4326&width=50&height=50&request=GetMetadata'),
          dataType: 'json',
          success: function( data ) {
             // If there is a min & max value returned the label and input are both shown.
